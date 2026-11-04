@@ -125,7 +125,7 @@ def solve_rate(args: argparse.Namespace) -> None:
     families = args.families.split(",") if args.families else sorted(
         path.name for path in suite.iterdir() if (path / "tasks").is_dir())
     rows = measure(suite, families, args.agent, args.model, args.attempts, args.concurrency, Path(args.jobs_dir),
-                   args.base_url, args.env)
+                   args.base_url, args.env, args.agent_kwarg)
     low, high = map(float, args.band.split(","))
     print(f"\n{'task':<42} {'family':<7} {'solve rate':>10}  rewards")
     for row in sorted(rows, key=lambda row: (row["solve_rate"] is None, row["solve_rate"] or 0)):
@@ -187,6 +187,9 @@ def main() -> None:
     rate_parser.add_argument("--env", default="docker", help="where Harbor runs each attempt: docker (local) or a remote "
                              "sandbox (modal, daytona, e2b, ...; needs that provider's API key) (default: %(default)s)")
     rate_parser.add_argument("--agent", default="terminus-2", help="any Harbor agent (default: %(default)s; `oracle` checks the tasks)")
+    rate_parser.add_argument("--agent-kwarg", action="append", default=[], metavar="KEY=VALUE",
+                             help="passed to Harbor as --ak (repeatable; VALUE may be JSON), e.g. terminus-2's "
+                             "model_info={\"max_input_tokens\":128000,\"max_output_tokens\":8192} for a model LiteLLM doesn't know")
     rate_parser.add_argument("-k", "--attempts", type=int, default=4, help="attempts per task (default: %(default)s)")
     rate_parser.add_argument("-n", "--concurrency", type=int, default=4, help="trials run at once (default: %(default)s)")
     rate_parser.add_argument("--families", help="comma-separated (default: every family in the suite)")

@@ -44,9 +44,11 @@ def model_args(model: str | None, base_url: str | None = None) -> list[str]:
 
 
 def run_harbor(tasks_dir: Path, agent: str, model: str | None, attempts: int, concurrency: int,
-               jobs_dir: Path, job_name: str, base_url: str | None = None, environment: str = "docker") -> Path:
+               jobs_dir: Path, job_name: str, base_url: str | None = None, environment: str = "docker",
+               agent_kwargs: list[str] = ()) -> Path:
     # terminus-2 records its terminal with asciinema, which it would install at start: tasks are offline
     agent_args = ["--ak", "record_terminal_session=false"] if agent == "terminus-2" else []
+    agent_args += [arg for kwarg in agent_kwargs for arg in ("--ak", kwarg)]
     subprocess.run([*harbor_command(), "run", "-p", str(tasks_dir), "-a", agent, *agent_args, *model_args(model, base_url),
                     "--env", environment,
                     "-k", str(attempts), "-n", str(concurrency), "-o", str(jobs_dir), "--job-name", job_name,
@@ -93,7 +95,8 @@ def record(suite: Path, family: str, rewards: dict[str, list[float | None]], age
 
 
 def measure(suite: Path, families: list[str], agent: str, model: str | None, attempts: int, concurrency: int,
-            jobs_dir: Path, base_url: str | None = None, environment: str = "docker") -> list[dict]:
+            jobs_dir: Path, base_url: str | None = None, environment: str = "docker",
+            agent_kwargs: list[str] = ()) -> list[dict]:
     slug = re.sub(r"[^A-Za-z0-9]+", "-", f"{agent}-{model or ''}").strip("-")[:60]
     rows = []
     for family in families:
@@ -101,7 +104,8 @@ def measure(suite: Path, families: list[str], agent: str, model: str | None, att
         if not tasks_dir.is_dir():
             continue
         job_dir = run_harbor(tasks_dir, agent, model, attempts, concurrency, jobs_dir,
-                             f"solve-rate-{family}-{slug}-{time.strftime('%Y%m%d-%H%M%S')}", base_url, environment)
+                             f"solve-rate-{family}-{slug}-{time.strftime('%Y%m%d-%H%M%S')}", base_url, environment,
+                             agent_kwargs)
         rows += record(suite, family, read_rewards(job_dir), agent, model)
     (suite / "solve_rates.json").write_text(json.dumps({"agent": agent, "model": model, "attempts": attempts,
                                                         "tasks": rows}, indent=1))
