@@ -157,3 +157,7 @@ Trace datasets mostly hold one-shot "build X" sessions: expect a few percent of 
 - Trace datasets often carry no license; publish privately until redistribution is cleared.
 - `assets/grader.py` is the deterministic grader from
   [SmolDataEnvs](https://huggingface.co/datasets/FineEnvs/SmolDataEnvs-harbor-train) (MIT).
+
+## License
+
+Apache 2.0, see [LICENSE](LICENSE). This covers the code, not the trace datasets or the tasks built from them.
