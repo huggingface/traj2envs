@@ -101,7 +101,7 @@ def measure(suite: Path, families: list[str], agent: str, model: str | None, att
     rows = []
     for family in families:
         tasks_dir = suite / family / "tasks"
-        if not tasks_dir.is_dir():
+        if not any(tasks_dir.glob("*/task.toml")):  # Harbor exits with an error on a folder with no tasks
             continue
         job_dir = run_harbor(tasks_dir, agent, model, attempts, concurrency, jobs_dir,
                              f"solve-rate-{family}-{slug}-{time.strftime('%Y%m%d-%H%M%S')}", base_url, environment,
