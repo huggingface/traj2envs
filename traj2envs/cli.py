@@ -83,7 +83,8 @@ def publish(args: argparse.Namespace) -> None:
     from .publish import publish_suite
 
     records = []
-    for record in publish_suite(Path(args.suite), args.repository, verify=not args.no_verify):
+    for record in publish_suite(Path(args.suite), args.repository, verify=not args.no_verify,
+                                opencode_image=args.opencode_image):
         records.append(record)
         print(f"{'pinned' if record['pinned'] else 'FAILED'}  {record['family']:<7} {record['task']:<40} "
               f"{record.get('docker_image') or record['reason'] + ' ' + str(record.get('detail', ''))}", flush=True)
@@ -172,6 +173,8 @@ def main() -> None:
     publish_parser.add_argument("--repository", required=True, help="e.g. docker.io/you/traj2envs (run `docker login` first)")
     publish_parser.add_argument("--platform", default=docker.PLATFORM, help="image platform, or 'native' (default: %(default)s)")
     publish_parser.add_argument("--no-verify", action="store_true", help="skip re-running the oracle on the published image")
+    publish_parser.add_argument("--opencode-image", help="copy /usr/local/bin/opencode from this image into every task "
+                                "image (build it from assets/opencode.Dockerfile)")
     publish_parser.set_defaults(handler=publish)
 
     pin_parser = commands.add_parser("pin", help="write docker_image from a kaniko_publish.sh log (e.g. an HF Jobs log)")

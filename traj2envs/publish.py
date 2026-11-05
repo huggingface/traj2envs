@@ -9,6 +9,9 @@ like SmolDataEnvs, every task.toml gets
 For each task: build environment/ for the target platform, push it (tasks with identical
 environments share one image), then run the oracle on that exact image (the healthcheck,
 solution/solve.sh, then tests/test.sh) and pin the digest only if it earns full reward.
+
+With `opencode_image` (built from assets/opencode.Dockerfile), the opencode binary is copied into
+every image first, and into environment/Dockerfile so the Dockerfile still matches the image.
 """
 
 from __future__ import annotations
@@ -22,6 +25,8 @@ from typing import Iterator
 import tomli_w
 
 from .docker import build_image, push_image, run_in_container
+
+MAX_IMAGE_REFERENCE = 100  # HF sandboxes reject longer image references; a digest takes 72 of them
 
 
 def oracle_reward(image: str, task_dir: Path, config: dict) -> str:
@@ -45,8 +50,12 @@ def environment_hash(environment_dir: Path) -> str:
     return digest.hexdigest()[:12]
 
 
-def publish_suite(suite_dir: Path, repository: str, verify: bool = True) -> Iterator[dict]:
+def publish_suite(suite_dir: Path, repository: str, verify: bool = True,
+                  opencode_image: str | None = None) -> Iterator[dict]:
     """Push every task's image to `repository` and pin it; yield one record per task."""
+    if len(repository) + len("@sha256:") + 64 > MAX_IMAGE_REFERENCE:
+        raise ValueError(f"{repository}@sha256:<digest> would exceed {MAX_IMAGE_REFERENCE} characters: "
+                         "use a shorter repository name")
     pinned_by_environment: dict[str, str] = {}
     for toml_path in sorted(suite_dir.glob("*/tasks/*/task.toml")):
         task_dir, family = toml_path.parent, toml_path.parent.parent.parent.name
@@ -56,6 +65,11 @@ def publish_suite(suite_dir: Path, repository: str, verify: bool = True) -> Iter
         if already_pinned.startswith(repository + "@"):  # resume: pinned by an earlier run
             yield {**record, "pinned": True, "reason": "already pinned", "docker_image": already_pinned}
             continue
+        if opencode_image:
+            dockerfile = task_dir / "environment" / "Dockerfile"
+            copy_line = f"COPY --from={opencode_image} /usr/local/bin/opencode /usr/local/bin/opencode"
+            if copy_line not in dockerfile.read_text():
+                dockerfile.write_text(dockerfile.read_text().rstrip("\n") + f"\n{copy_line}\n")
         local_tag = f"traj2envs-publish-{family}-{task_dir.name}".lower()
         if error := build_image(local_tag, task_dir / "environment"):
             yield {**record, "reason": "image_build_failed", "detail": error}
