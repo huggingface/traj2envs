@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Callable
 
 PLATFORM = os.environ.get("TRAJ2ENVS_PLATFORM", "linux/amd64")
+CONTAINER_MEMORY = os.environ.get("TRAJ2ENVS_CONTAINER_MEMORY", "4g")  # the most any task.toml asks for (memory_mb)
 
 
 def platform_args() -> list[str]:
@@ -44,7 +45,9 @@ def run_in_container(image: str, script: str, mounts: dict[Path, str] | None = N
     for host_path, container_path in (mounts or {}).items():
         volume_args += ["-v", f"{Path(host_path).resolve()}:{container_path}"]
     network_args = [] if network else ["--network", "none"]
-    process = subprocess.run(["docker", "run", "--rm", *platform_args(), *network_args, *volume_args,
+    # A runaway test must fail its own trial, not exhaust the host (the out-of-memory killer then hits anything).
+    memory_args = ["--memory", CONTAINER_MEMORY, "--memory-swap", CONTAINER_MEMORY]
+    process = subprocess.run(["docker", "run", "--rm", *platform_args(), *network_args, *memory_args, *volume_args,
                               image, "bash", "-c", script], capture_output=True, text=True, timeout=timeout_seconds)
     return process.returncode, process.stdout + process.stderr
 
