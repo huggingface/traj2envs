@@ -25,6 +25,12 @@ def platform_args() -> list[str]:
     return [] if PLATFORM == "native" else ["--platform", PLATFORM]
 
 
+def remove_as_root(path: Path) -> None:
+    """Delete a folder holding files a container wrote as root (on Linux the host user can't)."""
+    subprocess.run(["docker", "run", "--rm", "-v", f"{path.parent.resolve()}:/parent", "busybox:1.36",
+                    "rm", "-rf", f"/parent/{path.name}"], capture_output=True, check=True)
+
+
 def build_image(tag: str, context_dir: Path) -> str | None:
     """Build an image with BuildKit; return None on success, else the last line of the error.
 

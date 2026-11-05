@@ -20,7 +20,7 @@ from typing import Iterator
 
 import tomli_w
 
-from .docker import build_image, run_in_container
+from .docker import build_image, remove_as_root, run_in_container
 from .llm import BudgetExceeded
 from .trajectory import Trajectory
 
@@ -173,6 +173,8 @@ def write_files(root: Path, files: dict[str, str]) -> None:
 
 def fresh_directory(path: Path) -> Path:
     shutil.rmtree(path, ignore_errors=True)
+    if path.exists():  # left by a crashed run, with files trial containers wrote as root
+        remove_as_root(path)
     path.mkdir(parents=True)
     return path
 
